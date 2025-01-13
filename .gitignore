@@ -1,0 +1,6 @@
+.venv
+venv
+.vscode
+build
+*.egg-info
+air_quality_monitoring/questdb_volume/*
