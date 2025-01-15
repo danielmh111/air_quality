@@ -9,8 +9,7 @@ import pandas as pd
 
 
 def get_datafile():
-    r"C:\Users\Daniel\Documents\dmf\assignment\Air_Quality_Continuous.csv"
-    datafile = Path("Air_Quality_Continuous.csv")
+    datafile = Path("air_quality_monitoring\\data\\Air_Quality_Continuous.csv")
 
     # ToDo Fix Me
     # if not datafile.exists():
@@ -73,7 +72,7 @@ def clean_data(air_quality_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def write_data_to_csv(data: pd.DataFrame) -> Path:
-    cropped_datafile = Path("air_quality_cropped.csv")
+    cropped_datafile = Path("air_quality_monitoring\\data\\air_quality_cropped.csv")
     data.to_csv(cropped_datafile, index=False, header=True)
     return cropped_datafile
 
@@ -82,3 +81,4 @@ if __name__ == "__main__":
     raw_df = read_datafile()
     cropped_df = clean_data(raw_df)
     write_data_to_csv(data=cropped_df)
+    print("done")

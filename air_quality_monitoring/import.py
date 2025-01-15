@@ -6,82 +6,25 @@ from pprint import pprint
 import geopandas as gpd
 import shapely as shp
 import timeit
+import pymysql 
 
 # create database connection and cursor to use for the rest of the script
-DB_CONNECTION = connector.connect(
-    host="127.0.0.1",
-    port=3306,
-    database="air_quality",
-    user="root",
-)
-
-
-# main function for this file. it is called in the entry point at the bottom of the file. all functions used are defined below.
-def main():
-    start = timeit.default_timer()
-    cursor = DB_CONNECTION.cursor()
-
-    # read the constituencies data into memory and then populate the table
-    constituencies_file = Path("data\\constituencies.csv")
-    constituencies = populate_table_from_csv(
-        cursor=cursor,
-        table_name="constituencies",
-        file=constituencies_file,
-        column_names="(constituency_name, constituency_id)",
+try:
+    print("connecting to db...")
+    DB_CONNECTION = pymysql.connect(
+        host="127.0.0.1",
+        port=3306,
+        database="air_quality",
+        user="root",
+        password="",
+        connect_timeout=50,
     )
+    print(DB_CONNECTION)
+    print("Database connection successful")
+except Exception as e:
+    print(f"Database connection failed: {e}")
 
-    # read the stations data into memory and then populate the table.
-    # Consituency ID is missing from the station data at the moment and will be calculated and populated in the next step.
-    stations_file = Path("data\\stations.csv")
-    stations = populate_table_from_csv(
-        cursor=cursor,
-        table_name="stations",
-        file=stations_file,
-        column_names="(site_id, station_name, latitude, longitude)",
-    )
-
-    # get the geospacial data of stations and constiuencies to calculate with site is in which constituency
-    geo_stations = get_station_geospacial(stations)
-    geo_constituencies = get_constituency_geospacial(constituencies)
-
-    # use a spatial join to join stations to consituencies where the coordinates of the station are within the polygon of the constituency
-    final_stations = geo_stations.sjoin(
-        geo_constituencies[["constituency_id", "geometry"]],
-        how="inner",
-        predicate="within",
-    )
-    final_stations = final_stations.drop(["index_right", "geometry"], axis=1)
-
-    # populate stations table with full data
-    populate_table_from_df(
-        cursor=cursor,
-        table_name="stations",
-        dataframe=final_stations,
-        columns="( site_id, station_name, latitude, longitude,  constituency_id)",
-    )
-
-    # read measures data into memory then populate the table
-    populate_table_from_csv(
-        cursor=cursor,
-        table_name="measures",
-        file=Path("data\\measures.csv"),
-    )
-
-    # read the readings data into memory and populate the table.
-    # this function expects the data in the correct format in the file air_quality_cropped.csv , so cropped.py must have been run first.
-    populate_table_from_csv(
-        cursor=cursor,
-        table_name="readings",
-        file=Path("data\\air_quality_cropped.csv"),
-        has_headers=True,
-        return_results=False,  # with a large file, returning the results takes a long time
-    )
-
-    DB_CONNECTION.close()
-
-    end = timeit.default_timer()
-    print(f"ran in {end - start}")
-
+# helper functions definde here. they are used in the main function on line 185 of this file.
 
 def insert_values(cursor: MySQLCursorAbstract, table: str, values: str, columns: str = None) -> str:
     sql = f"insert into {table} {columns} values {values};"
@@ -179,10 +122,10 @@ def get_constituency_geospacial(constituencies: list[tuple,]):
     # create on gdf for each geojson
     # these geojsons were found on mapit.com
     for file in [
-        Path("data\\constituency_geoms\\bristol_east.geojson"),
-        Path("data\\constituency_geoms\\bristol_north.geojson"),
-        Path("data\\constituency_geoms\\bristol_south.geojson"),
-        Path("data\\constituency_geoms\\bristol_west.geojson"),
+        Path("air_quality_monitoring\\data\\constituency_geoms\\bristol_north.geojson"),
+        Path("air_quality_monitoring\\data\\constituency_geoms\\bristol_east.geojson"),
+        Path("air_quality_monitoring\\data\\constituency_geoms\\bristol_south.geojson"),
+        Path("air_quality_monitoring\\data\\constituency_geoms\\bristol_west.geojson"),
     ]:
         df = gpd.read_file(file)
         df["constituency_name"] = str.replace(file.stem, "_", " ")
@@ -244,6 +187,73 @@ def populate_table_from_df(cursor, table_name, dataframe: pd.DataFrame, columns)
     # select from table to check results
     results = select_all(cursor=cursor, table="stations")
     pprint(results)
+
+
+# main function for this file. it is called in the entry point at the bottom of the file.
+def main():
+    start = timeit.default_timer()
+    cursor = DB_CONNECTION.cursor()
+
+    # read the constituencies data into memory and then populate the table
+    constituencies_file = Path("air_quality_monitoring\\data\\constituencies.csv")
+    constituencies = populate_table_from_csv(
+        cursor=cursor,
+        table_name="constituencies",
+        file=constituencies_file,
+        column_names="(constituency_name, constituency_id)",
+    )
+
+    # read the stations data into memory and then populate the table.
+    # Consituency ID is missing from the station data at the moment and will be calculated and populated in the next step.
+    stations_file = Path("air_quality_monitoring\\data\\stations.csv")
+    stations = populate_table_from_csv(
+        cursor=cursor,
+        table_name="stations",
+        file=stations_file,
+        column_names="(site_id, station_name, latitude, longitude)",
+    )
+
+    # get the geospacial data of stations and constiuencies to calculate with site is in which constituency
+    geo_stations = get_station_geospacial(stations)
+    geo_constituencies = get_constituency_geospacial(constituencies)
+
+    # use a spatial join to join stations to consituencies where the coordinates of the station are within the polygon of the constituency
+    final_stations = geo_stations.sjoin(
+        geo_constituencies[["constituency_id", "geometry"]],
+        how="inner",
+        predicate="within",
+    )
+    final_stations = final_stations.drop(["index_right", "geometry"], axis=1)
+
+    # populate stations table with full data
+    populate_table_from_df(
+        cursor=cursor,
+        table_name="stations",
+        dataframe=final_stations,
+        columns="( site_id, station_name, latitude, longitude,  constituency_id)",
+    )
+
+    # read measures data into memory then populate the table
+    populate_table_from_csv(
+        cursor=cursor,
+        table_name="measures",
+        file=Path("air_quality_monitoring\\data\\measures.csv"),
+    )
+
+    # read the readings data into memory and populate the table.
+    # this function expects the data in the correct format in the file air_quality_cropped.csv , so cropped.py must have been run first.
+    populate_table_from_csv(
+        cursor=cursor,
+        table_name="readings",
+        file=Path("air_quality_monitoring\\data\\air_quality_cropped.csv"),
+        has_headers=True,
+        return_results=False,  # with a large file, returning the results takes a long time
+    )
+
+    DB_CONNECTION.close()
+
+    end = timeit.default_timer()
+    print(f"ran in {end - start}")
 
 
 if __name__ == "__main__":

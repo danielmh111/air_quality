@@ -5,7 +5,10 @@
 
 a virtual environment can be created on the top level of this project, and all necessary dependancies installed from the pyproject.toml file. Enter the air_quality_monitoring directory to run subsequent steps.
 
+its recommended to make sure pip is up to date with the latest version first to avoid issues.
+
 ```
+>>> python -m pip install --upgrade pip
 >>> python -m venv .venv
 >>> .venv/scripts/activate
 (.venv)>>> pip install -e .
