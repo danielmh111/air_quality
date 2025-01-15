@@ -125,23 +125,27 @@ def populate_table_from_csv(
     max_rows = 5000
 
     # format the contents of the csv into a well-formatted string so that it can be injected into SQL
-    with open(file, "r", encoding="UTF-8") as f:
+    with open(file, "r", encoding="UTF-8") as f:  # utf-8 needed for special chars in measures file
         contents = f.read().rstrip()  # rstip removes any blank lines at the top or end of a file
+
     values = [
-        "("  # open bracket for each row
+        "("                                     # open bracket for each row
         + ", ".join(
             [
-                "'"  # single quote around each string
-                + value.replace("'", "''")  # replace apostophes with two single quotes
-                + "'"  # closing single quote around each string
-                for value in line.split(",")  # do this for each comma seperated string in the row
+                "'"                             # single quote around each string
+                + value.replace("'", "''")      # replace apostophes with two single quotes
+                + "'"                           # closing single quote around each string
+                for value in line.split(",")    # do this for each comma seperated string in the row
             ]
-        )  # join these quote enclose strings with commas
-        + "),"  # close bracket for each row, and add a comma to seperate each row
-        for line in contents.split("\n")  # do this for every row in the file
+        )                                       # join these quote enclose strings with commas
+        + "),"                                  # close bracket for each row, and add a comma to seperate each row
+        for line in contents.split("\n")        # do this for every row in the file
     ]
+
     if has_headers:
-        headers = values.pop(0)  # remove the first row of values and use it as column names
+        headers = values.pop(
+            0
+        )  # remove the first row of values, assign to headers incase we need to it as column names
     if has_headers and column_names == "":
         column_names = headers.strip(",")  # remove trailing commas
         column_names = column_names.replace(
@@ -152,7 +156,9 @@ def populate_table_from_csv(
 
     for batch in batches:
         batch_values = "\n".join(batch)
-        batch_values = batch_values.strip(",")
+        batch_values = batch_values.strip(
+            ","
+        )  # remove the last trailing comma on the list of values
 
         insert_values(cursor=cursor, table=table_name, values=batch_values, columns=column_names)
 

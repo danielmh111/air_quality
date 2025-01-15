@@ -41,7 +41,6 @@ def read_datafile() -> pd.DataFrame:
         delimiter=",",
         header=0,
     )
-
     return air_quality_data
 
 
